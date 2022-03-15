@@ -32,17 +32,17 @@ public class RedHatSSOUtils {
             "http://localhost:8080/");
 
     private static final String RH_SSO_REALM = System.getProperty("com.redhat.internal.rhsso.realm",
-            "master");
+            "rhpam-client-app");
 
     private static final String RH_SSO_CLIENTID = System.getProperty("com.redhat.internal.rhsso.clientId",
-            "springboot-app");
+            "springboot-user-app");
 
     private static final String RH_SSO_CLIENT_SECRET = System.getProperty("com.redhat.internal.rhsso.clientSecret",
             "secret");
     
-    private static final String RH_SSO_USER_NAME = "userLC";
+    private String userName;
     
-    private static final String RH_SSO_USER_PASSWORD = "Pa$$w0rd";
+    private String password;
 
     private static final String URL_TEMPLATE = "%s/auth/realms/%s/protocol/openid-connect/token";
 
@@ -60,18 +60,20 @@ public class RedHatSSOUtils {
     
     private RedHatSSOJWT currentToken;
 
-    public static RedHatSSOUtils getInstance() {
+    public static RedHatSSOUtils getInstance(String userName, String password) {
         if (instance == null) {
-            instance = new RedHatSSOUtils();
+            instance = new RedHatSSOUtils(userName, password);
         }
         return instance;
     }
 
-    private RedHatSSOUtils() {
+    private RedHatSSOUtils(String userName, String password) {
+    	this.userName = userName;
+    	this.password = password;		
     }
 
     public synchronized String getAccessToken() {
-    	LOGGER.info("RH_SSO_SERVER: {}, RH_SSO_REALM: {}, RH_SSO_CLIENTID: {}, RH_SSO_CLIENT_SECRET: {}", RH_SSO_SERVER, RH_SSO_REALM, RH_SSO_CLIENTID, RH_SSO_CLIENT_SECRET);
+    	LOGGER.debug("RH_SSO_SERVER: {}, RH_SSO_REALM: {}, RH_SSO_CLIENTID: {}, RH_SSO_CLIENT_SECRET: {}", RH_SSO_SERVER, RH_SSO_REALM, RH_SSO_CLIENTID, RH_SSO_CLIENT_SECRET);
         if (currentToken == null) {
             final int requestTime = TimeUtils.currentTime();
             synchronized (this) {
@@ -93,7 +95,7 @@ public class RedHatSSOUtils {
             .fromJson(responseBody, RedHatSSOJWT.class);
 
     private Supplier<byte[]> retriveAuthorizationTokenBody = () -> String
-            .format(BODY_RAW_DATA_REQUEST, "password", RH_SSO_CLIENTID, RH_SSO_CLIENT_SECRET, RH_SSO_USER_NAME, RH_SSO_USER_PASSWORD) //
+            .format(BODY_RAW_DATA_REQUEST, "password", RH_SSO_CLIENTID, RH_SSO_CLIENT_SECRET, userName, password) //
             .getBytes(StandardCharsets.UTF_8);
 
     private Supplier<byte[]> refreshAuthorizationTokenBody = () -> String.format(BODY_RAW_DATA_REFRESH, "refresh_token",

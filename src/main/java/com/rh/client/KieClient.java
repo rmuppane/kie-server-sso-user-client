@@ -1,118 +1,92 @@
 package com.rh.client;
 
-import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-import org.kie.server.api.marshalling.MarshallingFormat;
-import org.kie.server.api.model.definition.QueryFilterSpec;
-import org.kie.server.api.model.instance.ProcessInstanceCustomVarsList;
-import org.kie.server.api.util.QueryFilterSpecBuilder;
-import org.kie.server.client.KieServicesClient;
-import org.kie.server.client.KieServicesConfiguration;
-import org.kie.server.client.KieServicesFactory;
-import org.kie.server.client.ProcessServicesClient;
-import org.kie.server.client.QueryServicesClient;
+import org.kie.server.api.model.instance.ProcessInstance;
+import org.kie.server.api.model.instance.TaskSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.rh.util.RedHatSSOUtils;
 
 public class KieClient {
 
 	final static Logger LOGGER = LoggerFactory.getLogger(KieClient.class);
 
-	// private static final String URL = "http://localhost:8080/kie-server/services/rest/server";
-	private static final String kieServerUrl = "http://localhost:8090/rest/server";
-
-	// CONSTANTS
-	private static final String CONTAINER = "work-flow";
-	private static final String PROCESS_ID = "work-flow.work-assignment";
-	private static final String QUERY_PROCESS_INSTANCES = "jbpmProcessInstances";
-	private static final String QUERY_PROCESS_INSTANCES_WITH_VAR = "jbpmProcessInstancesWithVariables";
-
-	private KieServicesClient client;
+	private final String KIE_SERVER_URL = "http://localhost:8090/rest/server";
+	private final String CONTAINER = "work-flow";
+	private final String PROCESS_ID = "work-flow.work-assignment";
+	
+	private final boolean BYPASS_AUTH = true;
 
 	public static void main(String[] args) {
 		KieClient clientApp = new KieClient();
-
-		System.setProperty("org.drools.server.filter.classes", "true");
-
-		LOGGER.info("begin");
-
-		Long piid = clientApp.launchProcess();
-		// clientApp.findProcessesByIds();
-
-		// log.info("piid {}", piid);
-
-		LOGGER.info("end");
+		
+		LOGGER.info("Test 1 begin ***");
+		clientApp.executeTest1();
+		LOGGER.info("Test 1 End ***");
 	}
+	
 
-	public KieClient() {
-		client = getKieServicesClient();
+	private void executeTest1() {
+		String userId = "UserLC";
+		String password = "Pa$$w0rd";
+		
+		KieFacade kieFacadeLC = KieFacade.getInstance(KIE_SERVER_URL, userId, password, BYPASS_AUTH);
+		Long piid = launchProcess(kieFacadeLC);
+		LOGGER.info("Test 1 Process ID [" + piid + "]");
+		
+		findProcessesByProcessId(kieFacadeLC, piid);
+		findProcessInstances(kieFacadeLC);
+		tasksAssignedAsPotentialUser(kieFacadeLC, userId);
+		getTasks(kieFacadeLC, userId);
 	}
-
-	public Long launchProcess() {
+	
+	public Long launchProcess(KieFacade kieFacade) {
 		try {
-			ProcessServicesClient processClient = client.getServicesClient(ProcessServicesClient.class);
 			Map<String, Object> inputData = new HashMap<>();
-
 			setInputData(inputData);
-			// ---------------------------
-			return processClient.startProcess(CONTAINER, PROCESS_ID, inputData);
-
+			return kieFacade.getProcessServicesClient().startProcess(CONTAINER, PROCESS_ID, inputData);
 		} catch (Exception e) {
 			e.printStackTrace();
 			return null;
 		}
 	}
-
-	public void findProcessesByIds() {
+	
+	public void findProcessInstances(KieFacade kieFacade) {
+		List<ProcessInstance> pis = kieFacade.getProcessServicesClient().findProcessInstances(CONTAINER, 0, 10);
+		LOGGER.info("findProcessInstances :" + pis);
+	}
+	
+	public void findProcessesByProcessId(KieFacade kieFacade, final Long piid) {
 		try {
-			QueryServicesClient queryClient = client.getServicesClient(QueryServicesClient.class);
-
-			QueryFilterSpec spec = new QueryFilterSpecBuilder().between("processInstanceId", 0, 10)
-															   .in("variableId", Arrays.asList("dossierId", "status"))
-			                                                   .get();
-
-			queryClient.query(QUERY_PROCESS_INSTANCES_WITH_VAR, QueryServicesClient.QUERY_MAP_PI_WITH_VARS, spec, 0, 10,
-			        ProcessInstanceCustomVarsList.class);
-
+			ProcessInstance pi = kieFacade.getQueryServicesClient().findProcessInstanceById(piid, true);
+			LOGGER.info("pi Details:" + pi);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public void tasksAssignedAsPotentialUser(KieFacade kieFacade, final String userId) {
+		try {
+			List<TaskSummary> tasks = kieFacade.getUserTaskServicesClient().findTasksAssignedAsPotentialOwner(userId, 0, 10);
+			LOGGER.info("findTasksAssignedAsPotentialOwner" + tasks);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private void getTasks(KieFacade kieFacade, String userId) {
+		try {
+			List<TaskSummary> tasks = kieFacade.getUserTaskServicesClient().findTasks(userId, 0, 10);
+			LOGGER.info("findTasks" + tasks);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
 	private void setInputData(Map<String, Object> inputData) {
-		
+		inputData.put("faceAmount", 50000);
+		inputData.put("age", 35);
 	}
-
-	private void sendSignal(String signalName, Object signalPayload) {
-		ProcessServicesClient processClient = client.getServicesClient(ProcessServicesClient.class);
-		processClient.signal(CONTAINER, signalName, signalPayload);
-	}
-
-	public KieServicesClient getKieServicesClient() {
-		LOGGER.info("Start KieServicesClient");
-		// System.setProperty("org.kie.server.bypass.auth.user", authBypass);
-		// LOGGER.info("org.kie.server.bypass.auth.user ["+ System.getProperty("org.kie.server.bypass.auth.user") + "], kieServerUrl [" + kieServerUrl + "]");
-		// LOGGER.info("com.redhat.internal.services.remoteClasses {} ", remoteClasses);
-		final KieServicesConfiguration config = KieServicesFactory.newRestConfiguration(kieServerUrl, new RedHatSSOCredentialProvider(() -> RedHatSSOUtils.getInstance().getAccessToken()), 100000l);
-		
-		/*final Set<Class<?>> classes = Arrays.asList(remoteClasses.split(",")).stream().map(className -> {
-			try {
-				return Class.forName(className);
-			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
-			}
-			return null;
-		}).filter(className -> className != null).collect(Collectors.toSet());*/
-		// LOGGER.info("classes Set is {} ", classes);
-		// config.addExtraClasses(classes);
-		config.setMarshallingFormat(MarshallingFormat.XSTREAM);
-		config.setTimeout(100000l);
-		LOGGER.info("End KieServicesClient");
-		return KieServicesFactory.newKieServicesClient(config);
-	}
-
 }
