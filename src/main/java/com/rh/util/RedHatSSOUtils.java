@@ -29,10 +29,10 @@ public class RedHatSSOUtils {
 	private static final Logger LOGGER = LoggerFactory.getLogger(RedHatSSOUtils.class);
 	
     private static final String RH_SSO_SERVER = System.getProperty("com.redhat.internal.rhsso.server",
-            "http://localhost:8080/");
+            "http://localhost:8080");
 
     private static final String RH_SSO_REALM = System.getProperty("com.redhat.internal.rhsso.realm",
-            "rhpam-client-app");
+            "rhpam-treaty-dxc");
 
     private static final String RH_SSO_CLIENTID = System.getProperty("com.redhat.internal.rhsso.clientId",
             "springboot-user-app");
@@ -52,7 +52,7 @@ public class RedHatSSOUtils {
 
     private static RedHatSSOUtils instance;
     
-    private static final long DEFAULT_MIN_VALIDITY = 30;
+    private static final long DEFAULT_MIN_VALIDITY = 1; //= 30;
     
     private long expirationTime;
     
@@ -61,9 +61,9 @@ public class RedHatSSOUtils {
     private RedHatSSOJWT currentToken;
 
     public static RedHatSSOUtils getInstance(String userName, String password) {
-        if (instance == null) {
+        //if (instance == null) {
             instance = new RedHatSSOUtils(userName, password);
-        }
+        //}
         return instance;
     }
 

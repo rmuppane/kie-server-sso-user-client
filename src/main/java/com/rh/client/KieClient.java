@@ -17,31 +17,109 @@ public class KieClient {
 	private final String CONTAINER = "work-flow";
 	private final String PROCESS_ID = "work-flow.work-assignment";
 	
-	private final boolean BYPASS_AUTH = true;
+	private final boolean BYPASS_AUTH = false;
 
 	public static void main(String[] args) {
 		KieClient clientApp = new KieClient();
 		
-		LOGGER.info("Test 1 begin ***");
+		/*LOGGER.info("Test 1 begin ***");
 		clientApp.executeTest1();
-		LOGGER.info("Test 1 End ***");
+		LOGGER.info("Test 1 End ***");*/
+		
+		LOGGER.info("Test 2 begin ***");
+		clientApp.executeTest2();
+		LOGGER.info("Test 2 End ***");
 	}
 	
 
 	private void executeTest1() {
-		String userId = "UserLC";
+		String teamleader_lc = "teamlead_lc";
 		String password = "Pa$$w0rd";
 		
-		KieFacade kieFacadeLC = KieFacade.getInstance(KIE_SERVER_URL, userId, password, BYPASS_AUTH);
-		Long piid = launchProcess(kieFacadeLC);
+		KieFacade kieFacadeTeamLeadLC = KieFacade.getInstance(KIE_SERVER_URL, teamleader_lc, password, BYPASS_AUTH);
+		Long piid = launchProcess(kieFacadeTeamLeadLC);
 		LOGGER.info("Test 1 Process ID [" + piid + "]");
 		
-		findProcessesByProcessId(kieFacadeLC, piid);
-		findProcessInstances(kieFacadeLC);
-		tasksAssignedAsPotentialUser(kieFacadeLC, userId);
-		getTasks(kieFacadeLC, userId);
+		findProcessesByProcessId(kieFacadeTeamLeadLC, piid);
+		findProcessInstances(kieFacadeTeamLeadLC);
+		List<TaskSummary> tasks = tasksAssignedAsPotentialUser(kieFacadeTeamLeadLC, teamleader_lc);
+		getTasks(kieFacadeTeamLeadLC, teamleader_lc);
+		claimTheTask(kieFacadeTeamLeadLC, tasks.get(0).getId(), teamleader_lc);
+		getTasks(kieFacadeTeamLeadLC, teamleader_lc);
+		startTheTask(kieFacadeTeamLeadLC, tasks.get(0).getId(), teamleader_lc);
+		completeTheTask(kieFacadeTeamLeadLC, tasks.get(0).getId(), teamleader_lc);
+		findProcessInstances(kieFacadeTeamLeadLC);
+		tasksAssignedAsPotentialUser(kieFacadeTeamLeadLC, teamleader_lc);
 	}
 	
+	private void executeTest2() { 
+		String teamleader_lc = "teamlead_lc";
+		String password = "Pa$$w0rd";
+		
+		String technician_l1 = "technician_l1";
+		
+		KieFacade kieFacadeTeamLeadLC = KieFacade.getInstance(KIE_SERVER_URL, teamleader_lc, password, BYPASS_AUTH);
+		KieFacade kieFacadeTechnicianL1 = KieFacade.getInstance(KIE_SERVER_URL, technician_l1, password, BYPASS_AUTH);
+		
+		Long piid = launchProcess(kieFacadeTeamLeadLC);
+		LOGGER.info("Test 2 Process ID [" + piid + "]");
+		
+		findProcessesByProcessId(kieFacadeTeamLeadLC, piid);
+		findProcessInstances(kieFacadeTeamLeadLC);
+		
+		List<TaskSummary> tasks = tasksAssignedAsPotentialUser(kieFacadeTeamLeadLC, teamleader_lc); // For LC
+		tasksAssignedAsPotentialUser(kieFacadeTechnicianL1, technician_l1); // For L
+		
+		getTasks(kieFacadeTeamLeadLC, teamleader_lc);
+		getTasks(kieFacadeTechnicianL1, technician_l1);
+		
+		delegateTheTask(kieFacadeTeamLeadLC, tasks.get(0).getId(), teamleader_lc, technician_l1);
+		
+		getTasks(kieFacadeTeamLeadLC, teamleader_lc); // For LC
+		getTasks(kieFacadeTechnicianL1, technician_l1); // For L
+		
+		getOtherUsertasks(kieFacadeTeamLeadLC, teamleader_lc, technician_l1);
+		
+		startTheTask(kieFacadeTechnicianL1, tasks.get(0).getId(), technician_l1);
+		completeTheTask(kieFacadeTechnicianL1, tasks.get(0).getId(), technician_l1);
+		
+		findProcessInstances(kieFacadeTeamLeadLC);
+		
+		tasksAssignedAsPotentialUser(kieFacadeTeamLeadLC, teamleader_lc); // For LC
+	}
+	
+
+
+
+	private void getOtherUsertasks(KieFacade kieFacade, String loggedInUser, String targetUser) {
+		
+		
+	}
+
+
+	private void delegateTheTask(KieFacade kieFacade, long taskId, String user, String target_User) {
+		Map<String, Object> map = new HashMap<String, Object>();
+		kieFacade.getUserTaskServicesClient().delegateTask(CONTAINER, taskId, user, target_User);
+	}
+
+
+	private void completeTheTask(KieFacade kieFacade, Long taskId, String user) {
+		Map<String, Object> map = new HashMap<String, Object>();
+		kieFacade.getUserTaskServicesClient().completeTask(CONTAINER, taskId, user, map);
+		
+	}
+
+
+	private void startTheTask(KieFacade kieFacade, Long taskId, String user) {
+		kieFacade.getUserTaskServicesClient().startTask(CONTAINER, taskId, user);
+	}
+
+
+	private void claimTheTask(KieFacade kieFacade, Long taskId, String user) {
+		kieFacade.getUserTaskServicesClient().claimTask(CONTAINER, taskId, user);
+	}
+
+
 	public Long launchProcess(KieFacade kieFacade) {
 		try {
 			Map<String, Object> inputData = new HashMap<>();
@@ -67,13 +145,15 @@ public class KieClient {
 		}
 	}
 	
-	public void tasksAssignedAsPotentialUser(KieFacade kieFacade, final String userId) {
+	public List<TaskSummary>  tasksAssignedAsPotentialUser(KieFacade kieFacade, final String userId) {
+		List<TaskSummary> tasks = null;
 		try {
-			List<TaskSummary> tasks = kieFacade.getUserTaskServicesClient().findTasksAssignedAsPotentialOwner(userId, 0, 10);
+			tasks = kieFacade.getUserTaskServicesClient().findTasksAssignedAsPotentialOwner(userId, 0, 10);
 			LOGGER.info("findTasksAssignedAsPotentialOwner" + tasks);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		return tasks;
 	}
 	
 	private void getTasks(KieFacade kieFacade, String userId) {
