@@ -4,8 +4,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.kie.server.api.model.definition.QueryDefinition;
+import org.kie.server.api.model.definition.TaskField;
+import org.kie.server.api.model.definition.TaskQueryFilterSpec;
 import org.kie.server.api.model.instance.ProcessInstance;
+import org.kie.server.api.model.instance.TaskInstance;
 import org.kie.server.api.model.instance.TaskSummary;
+import org.kie.server.api.util.TaskQueryFilterSpecBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,18 +92,38 @@ public class KieClient {
 		
 		tasksAssignedAsPotentialUser(kieFacadeTeamLeadLC, teamleader_lc); // For LC
 	}
-	
-
-
 
 	private void getOtherUsertasks(KieFacade kieFacade, String loggedInUser, String targetUser) {
-		
-		
+		final String QUERY_NAME = "taskInstancesQuery";
+	    final String TASK_QUERY = "select ti.* from AuditTaskImpl ti";
+	    
+	    QueryDefinition query = new QueryDefinition();
+        query.setName(QUERY_NAME);
+        query.setSource(System.getProperty("org.kie.server.persistence.ds", "jdbc/jbpm-ds"));
+        query.setExpression(TASK_QUERY);
+        query.setTarget("CUSTOM");
+        kieFacade.getQueryServicesClient().registerQuery(query);
+	    
+        HashMap<TaskField, String> compareList = new HashMap<>();
+        
+        compareList.put( TaskField.ACTUALOWNER,
+        		targetUser );
+        
+        List<TaskInstance> results = kieFacade.getQueryServicesClient().findHumanTasksWithFilters( QUERY_NAME, 
+                createQueryFilterAndEqualsTo( compareList ), 0, 100 );
+        
+        LOGGER.info("Other User Tasks :" + results);
+        
+        kieFacade.getQueryServicesClient().unregisterQuery(QUERY_NAME);
+	}
+	
+	private TaskQueryFilterSpec createQueryFilterAndEqualsTo( Map<TaskField, String> filterProperties ) {
+		TaskQueryFilterSpecBuilder result = new TaskQueryFilterSpecBuilder();
+		filterProperties.forEach( result::equalsTo );
+		return result.get();
 	}
 
-
 	private void delegateTheTask(KieFacade kieFacade, long taskId, String user, String target_User) {
-		Map<String, Object> map = new HashMap<String, Object>();
 		kieFacade.getUserTaskServicesClient().delegateTask(CONTAINER, taskId, user, target_User);
 	}
 
