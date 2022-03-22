@@ -84,5 +84,9 @@ public class KieFacade {
 	public UIServicesClient getUIServicesClient() {
 	    return client.getServicesClient(UIServicesClient.class);
 	}
+	
+	public void close() {
+		client.close();
+	}
 
 }

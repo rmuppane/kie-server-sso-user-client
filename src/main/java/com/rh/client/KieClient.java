@@ -91,6 +91,10 @@ public class KieClient {
 		findProcessInstances(kieFacadeTeamLeadLC);
 		
 		tasksAssignedAsPotentialUser(kieFacadeTeamLeadLC, teamleader_lc); // For LC
+		
+		
+		close(kieFacadeTeamLeadLC);
+		close(kieFacadeTechnicianL1);
 	}
 
 	private void getOtherUsertasks(KieFacade kieFacade, String loggedInUser, String targetUser) {
@@ -115,8 +119,14 @@ public class KieClient {
         LOGGER.info("Other User Tasks :" + results);
         
         kieFacade.getQueryServicesClient().unregisterQuery(QUERY_NAME);
+        
 	}
 	
+	private void close(KieFacade kieFacade) {
+		kieFacade.close();
+	}
+
+
 	private TaskQueryFilterSpec createQueryFilterAndEqualsTo( Map<TaskField, String> filterProperties ) {
 		TaskQueryFilterSpecBuilder result = new TaskQueryFilterSpecBuilder();
 		filterProperties.forEach( result::equalsTo );
